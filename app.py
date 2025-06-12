@@ -139,6 +139,8 @@ If content is irrelevant, say so.
                 model="gpt-4o",
                 messages=[{"role": "user", "content": gpt_prompt}],
                 temperature=0.5
+                uploaded_files = st.file_uploader("Upload one or more files", type=["pdf", "docx", "xlsx"], accept_multiple_files=True)
+
             )
             st.subheader("📄 GPT Summary")
             st.markdown(summary_response["choices"][0]["message"]["content"])
