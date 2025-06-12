@@ -1,6 +1,5 @@
-﻿streamlit
-openai
-PyPDF2
-python-docx
-pandas
-openpyxl
+streamlit>=1.25.0
+openai>=1.2.0
+python-docx>=0.8.11
+PyPDF2>=3.0.1
+pandas>=2.0.0
