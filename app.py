@@ -9,6 +9,8 @@ from PyPDF2 import PdfReader
 import pandas as pd
 import base64
 from collections import defaultdict
+from fpdf import FPDF
+import requests
 
 # Initialize OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -49,29 +51,57 @@ mode = st.radio("How would you like to start?", [
     "Go Autopilot (Auto-scan from website)"
 ])
 
+# Autopilot mode
+if mode == "Go Autopilot (Auto-scan from website)":
+    st.subheader("🌐 Autopilot ESG Scan")
+    domain = st.text_input("Enter your company website URL (e.g., example.com)")
+    if st.button("Go Autopilot") and domain:
+        with st.spinner("Scanning public ESG data..."):
+            dummy_data = {
+                "Company Name": domain.split(".")[0].capitalize(),
+                "Logo URL": f"https://logo.clearbit.com/{domain}",
+                "Employees": "150",
+                "HQ": "Paris, France",
+                "Diversity Statement": "Actively hiring and promoting underrepresented groups.",
+                "Governance": "Board includes 40% women and ESG oversight.",
+                "Environment": "Carbon neutrality goal set for 2030."
+            }
+            st.session_state.autopilot = dummy_data
+
+if 'autopilot' in st.session_state:
+    st.subheader("🔎 Public ESG Profile (Autopilot)")
+    data = st.session_state.autopilot
+    st.image(data['Logo URL'], width=100)
+    st.markdown(f"**Company Name:** {data['Company Name']}")
+    st.markdown(f"**Location:** {data['HQ']}")
+    st.markdown(f"**Employees:** {data['Employees']}")
+    st.markdown(f"**Diversity:** {data['Diversity Statement']}")
+    st.markdown(f"**Governance:** {data['Governance']}")
+    st.markdown(f"**Environment:** {data['Environment']}")
+
 # Checklist view
 with st.expander("📋 Beginner's Document Checklist (Click to view)"):
     st.markdown("#### VSME Report")
     st.markdown("""
-- Invoices (electricity, water, waste) -- PDF/XLSX  
-- HR Data (gender ratio, contracts) -- XLSX/DOCX  
-- Org Chart -- PDF/DOCX  
-- Policies (HR, conduct) -- PDF/DOCX  
-- Facility List -- XLSX  
+- Invoices (electricity, water, waste) -- PDF/XLSX
+- HR Data (gender ratio, contracts) -- XLSX/DOCX
+- Org Chart -- PDF/DOCX
+- Policies (HR, conduct) -- PDF/DOCX
+- Facility List -- XLSX
     """)
     st.markdown("#### EcoVadis Submission")
     st.markdown("""
-- Policies (ethics, environment) -- PDF/DOCX  
-- Supplier Policy -- PDF/DOCX  
-- Trainings -- XLSX/PPTX  
-- GHG Reports -- XLSX/PDF  
+- Policies (ethics, environment) -- PDF/DOCX
+- Supplier Policy -- PDF/DOCX
+- Trainings -- XLSX/PPTX
+- GHG Reports -- XLSX/PDF
     """)
     st.markdown("#### CSRD Preparation")
     st.markdown("""
-- Risk Matrix -- XLSX/DOCX  
-- Governance Structure -- PDF/DOCX  
-- Stakeholder Engagement Summaries -- PDF/DOCX  
-- Internal Audit Files -- PDF  
+- Risk Matrix -- XLSX/DOCX
+- Governance Structure -- PDF/DOCX
+- Stakeholder Engagement Summaries -- PDF/DOCX
+- Internal Audit Files -- PDF
     """)
 
 # Company Info
@@ -101,52 +131,23 @@ if 'roadmap' in st.session_state:
     st.subheader("📋 Your ESG Roadmap")
     st.markdown(st.session_state.roadmap)
 
-# Autopilot Mode
-if mode == "Go Autopilot (Auto-scan from website)":
-    st.subheader("🌐 Enter Your Company Website")
-    website_url = st.text_input("Company Website (e.g., https://example.com)")
-    show_sources = st.checkbox("🔍 Show Source Details and Confidence Levels", value=True)
-    if st.button("🚀 Go Autopilot") and website_url:
-        with st.spinner("Scanning online presence and generating ESG draft..."):
-            autopilot_prompt = f"""
-You are GingerBug, a smart ESG assistant.
-Based only on the public web presence of the company at: {website_url}, simulate the following:
-
-1. Extract the company name, logo URL, address, and employee estimate
-2. List 3–5 factual company bio points (industry, mission, values, etc.)
-3. Any ESG-related policies or values likely found on the site
-4. Mentions of certifications, initiatives, or stakeholder engagement
-5. Environmental claims, climate goals, renewable energy use, emissions disclosures if any
-6. Social responsibility indicators such as employee well-being, DEI, community projects
-7. Governance practices or leadership ethics, diversity on board, anti-bribery if mentioned
-8. A first-draft ESG report based on this simulated data
-
-Also:
-- Show the logo using markdown if found.
-- Identify which indicators align with EcoVadis or CSRD if possible.
-- Add confidence level (high/medium/low) per datapoint.
-- If sources like press releases or social media are referenced, note them.
-
-Format clearly with markdown. Keep it readable and structured.
-{"Include all source details and confidence levels." if show_sources else "Keep summary short and exclude source details."}
-            """
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": autopilot_prompt}],
-                    temperature=0.6
-                )
-                autopilot_output = response.choices[0].message.content
-                st.subheader("📄 Simulated ESG Draft")
-                st.markdown(autopilot_output)
-                st.download_button("📥 Download ESG Draft", autopilot_output, file_name="Simulated_ESG_Report.txt")
-            except Exception as e:
-                st.error(f"⚠️ Autopilot failed: {str(e)}")
-
-# File preview section for uploads
+# File upload section
 st.subheader("📂 Uploaded File Preview")
 uploaded_files = st.file_uploader("Upload your ESG-related documents", accept_multiple_files=True)
 
+def create_pdf(summary_list):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="GingerBug - ESG Summary Report", ln=True, align="C")
+    pdf.ln(10)
+    for idx, text in enumerate(summary_list):
+        pdf.multi_cell(0, 10, txt=f"{idx+1}. {text}")
+        pdf.ln(2)
+    return pdf.output(dest="S").encode("latin1")
+
+# Display uploaded content
 if uploaded_files:
     for file in uploaded_files:
         st.markdown(f"**Filename:** {file.name}")
@@ -163,10 +164,16 @@ if uploaded_files:
         else:
             content = file.read().decode(errors="ignore")
             st.text(content[:500])
+        st.session_state.summaries.append(f"Summary for {file.name}")
+
+# Download button for PDF
+if st.session_state.summaries:
+    pdf_data = create_pdf(st.session_state.summaries)
+    st.download_button("📥 Download ESG Summary Report (PDF)", pdf_data, file_name="GingerBug_ESG_Summary.pdf")
 
 # Traffic light ESG score (placeholder logic)
 st.subheader("🚦 ESG Readiness Indicator")
-if len(uploaded_files) > 0:
+if uploaded_files:
     file_score = len(uploaded_files)
     if file_score > 5:
         st.success("🟢 High Readiness: Great job! You're on track.")
