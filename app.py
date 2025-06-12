@@ -1,6 +1,5 @@
 import streamlit as st
 from openai import OpenAI
-import openai
 import os
 import io
 import docx
@@ -22,7 +21,10 @@ st.title("🌱 GingerBug - Release your sustainable power")
 if st.button("🔄 Start Over"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-    st.experimental_rerun()
+    try:
+        st.rerun()
+    except Exception:
+        st.experimental_rerun()
 
 # Email collection
 st.markdown("### ✉️ Enter your email to personalize your experience")
@@ -90,3 +92,57 @@ if 'autopilot' in st.session_state:
     st.markdown(f"**Environment:** {data.get('Environment', 'N/A')}")
     if st.toggle("Show data source info"):
         st.info(data.get('Sources', ''))
+
+# Upload files (Quick Start & Guided Upload)
+if mode in ["Quick Start (Let AI work with what I upload)", "Guided Upload (Step-by-step document upload)"]:
+    st.subheader("📤 Upload your documents")
+    uploaded_files = st.file_uploader("Upload multiple ESG-related files:", type=["pdf", "docx", "xlsx"], accept_multiple_files=True)
+
+    def extract_text_from_file(uploaded_file):
+        if uploaded_file.type == "application/pdf":
+            pdf_reader = PdfReader(uploaded_file)
+            return "\n".join([page.extract_text() for page in pdf_reader.pages])
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            doc = docx.Document(uploaded_file)
+            return "\n".join([para.text for para in doc.paragraphs])
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            df = pd.read_excel(uploaded_file)
+            return df.to_csv(index=False)
+        return ""
+
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            content = extract_text_from_file(uploaded_file)
+            file_summary = f"Summarize this ESG-related document for compliance reporting:\n\n{content[:4000]}"
+            with st.spinner(f"Analyzing {uploaded_file.name}..."):
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": file_summary}],
+                    temperature=0.3
+                )
+                summary = response.choices[0].message.content
+                st.session_state.summaries.append({"file": uploaded_file.name, "summary": summary})
+
+# Show dashboard
+if st.session_state.summaries:
+    st.header("📊 ESG Report Summary Dashboard")
+    for entry in st.session_state.summaries:
+        st.markdown(f"**{entry['file']}**")
+        st.text_area("Summary", entry['summary'], height=150)
+
+    # Export button
+    if st.button("📥 Export Summaries to PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        for entry in st.session_state.summaries:
+            pdf.cell(200, 10, txt=entry['file'], ln=True, align='L')
+            pdf.multi_cell(0, 10, txt=entry['summary'])
+            pdf.ln()
+        output_path = "/tmp/gingerbug_report.pdf"
+        pdf.output(output_path)
+
+        with open(output_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="gingerbug_summary.pdf">📄 Download ESG Summary PDF</a>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
