@@ -111,6 +111,7 @@ if mode in ["Quick Start (Let AI work with what I upload)", "Guided Upload (Step
         return ""
 
     if uploaded_files:
+        total_score = 0
         for uploaded_file in uploaded_files:
             content = extract_text_from_file(uploaded_file)
             file_summary = f"Summarize this ESG-related document for compliance reporting:\n\n{content[:4000]}"
@@ -122,6 +123,12 @@ if mode in ["Quick Start (Let AI work with what I upload)", "Guided Upload (Step
                 )
                 summary = response.choices[0].message.content
                 st.session_state.summaries.append({"file": uploaded_file.name, "summary": summary})
+                if any(keyword in summary.lower() for keyword in ["diversity", "carbon", "ethics", "labor"]):
+                    total_score += 1
+
+        if uploaded_files:
+            traffic_color = "🟢" if total_score >= 3 else "🟡" if total_score == 2 else "🔴"
+            st.markdown(f"### ESG Score Indicator: {traffic_color} Based on content coverage")
 
 # Show dashboard
 if st.session_state.summaries:
