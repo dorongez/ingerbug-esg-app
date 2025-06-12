@@ -57,16 +57,16 @@ if mode == "Go Autopilot (Auto-scan from website)":
     domain = st.text_input("Enter your company website URL (e.g., example.com)")
     if st.button("Go Autopilot") and domain:
         with st.spinner("Scanning public ESG data..."):
-            dummy_data = {
-                "Company Name": domain.split(".")[0].capitalize(),
-                "Logo URL": f"https://logo.clearbit.com/{domain}",
-                "Employees": "150",
-                "HQ": "Paris, France",
-                "Diversity Statement": "Actively hiring and promoting underrepresented groups.",
-                "Governance": "Board includes 40% women and ESG oversight.",
-                "Environment": "Carbon neutrality goal set for 2030."
-            }
-            st.session_state.autopilot = dummy_data
+            company_data = {
+    "Company Name": domain,
+    "Logo URL": f"https://logo.clearbit.com/{domain}",
+    "Employees": "Not available",
+    "HQ": "Not available",
+    "Diversity Statement": "Not available",
+    "Governance": "Not available",
+    "Environment": "Not available"
+}
+            st.session_state.autopilot = company_data
 
 if 'autopilot' in st.session_state:
     st.subheader("🔎 Public ESG Profile (Autopilot)")
