@@ -13,9 +13,9 @@ st.set_page_config(page_title="GingerBug ESG Assistant", layout="wide")
 st.title("🌱 GingerBug - Release your sustainable power")
 
 st.markdown("""Welcome to GingerBug, your AI-powered ESG reporting companion for VSME, EcoVadis, and CSRD prep.
-Choose how you'd like to begin your sustainability journey below.""")
-Choose how you'd like to begin your sustainability journey below.
-""")
+
+Choose how you'd like to begin your sustainability journey below.""")""")
+
 
 # Mode selection
 st.header("🗜️ Choose Your Mode")
