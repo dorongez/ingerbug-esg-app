@@ -6,6 +6,8 @@ import io
 import docx
 from PyPDF2 import PdfReader
 import pandas as pd
+import base64
+from collections import defaultdict
 
 # Initialize OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -92,6 +94,9 @@ if "CSRD Prep" in report_goal:
 st.header("3. Upload Files")
 uploaded_files = st.file_uploader("Upload your ESG-related documents", type=["pdf", "docx", "xlsx"], accept_multiple_files=True)
 
+doc_summaries = []
+doc_categories = defaultdict(list)
+
 if uploaded_files:
     for uploaded_file in uploaded_files:
         file_details = {"filename": uploaded_file.name, "type": uploaded_file.type, "size": uploaded_file.size}
@@ -111,7 +116,7 @@ if uploaded_files:
 
         if text:
             with st.spinner("Analyzing file with GPT..."):
-                gpt_prompt = f"You are an ESG assistant. Summarize the ESG-relevant contents of this document:\n{text[:4000]}"
+                gpt_prompt = f"You are an ESG assistant. Based on this document, provide:\n1. A concise ESG summary\n2. Categorize it as Environmental, Social, Governance, or Other\n3. Mention any missing key policies or documents.\n4. If missing, suggest a brief draft outline.\n\nDocument content:\n{text[:4000]}"
                 try:
                     response = client.chat.completions.create(
                         model="gpt-3.5-turbo",
@@ -119,9 +124,21 @@ if uploaded_files:
                         temperature=0.3
                     )
                     summary = response.choices[0].message.content
+                    doc_summaries.append((uploaded_file.name, summary))
+
+                    st.markdown(f"**AI Summary for {uploaded_file.name}:**")
+                    st.write(summary)
                 except openai.RateLimitError:
-                    summary = "⚠️ Rate limit exceeded. Please wait a moment and try again."
+                    st.warning("⚠️ Rate limit exceeded. Please wait a moment and try again.")
                 except Exception as e:
-                    summary = f"⚠️ An error occurred: {str(e)}"
-                st.markdown("**AI Summary:**")
-                st.write(summary)
+                    st.error(f"⚠️ An error occurred: {str(e)}")
+
+    # Download button for all summaries
+    if doc_summaries:
+        combined_text = "\n\n".join([f"### {name}\n{summary}" for name, summary in doc_summaries])
+        b64 = base64.b64encode(combined_text.encode()).decode()
+        href = f'<a href="data:file/txt;base64,{b64}" download="ESG_AI_Summaries.txt">📥 Download All Summaries</a>'
+        st.markdown(href, unsafe_allow_html=True)
+
+        st.success("✅ Analysis complete. See 'Download All Summaries' above.")
+        st.info("📌 Next Steps: Check the summaries for missing items. Complete policy drafts where needed. Then use the ESG Roadmap to begin your structured reporting.")
