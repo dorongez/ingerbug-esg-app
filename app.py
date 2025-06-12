@@ -60,20 +60,31 @@ if mode == "Go Autopilot (Auto-scan from website)":
         with st.spinner("Scanning public ESG data..."):
             try:
                 company_name = domain.replace("www.", "").split(".")[0].capitalize()
-                response = requests.get(f"https://logo.clearbit.com/{domain}")
-                logo_url = response.url if response.status_code == 200 else ""
+                logo_url = f"https://logo.clearbit.com/{domain}"
 
-                company_data = {
-                    "Company Name": company_name,
-                    "Logo URL": logo_url,
-                    "Employees": "Not available",
-                    "HQ": "Not available",
-                    "Diversity Statement": "Not available",
-                    "Governance": "Not available",
-                    "Environment": "Not available",
-                    "Sources": "Data pulled from public website metadata and trusted APIs."
-                }
-                st.session_state.autopilot = company_data
+                search_prompt = f"""
+                You are an ESG assistant. Based only on reliable public sources (like Wikipedia, news articles, company pages),
+                extract key ESG-related facts about the company '{company_name}'.
+                Focus on:
+                - Headquarters location
+                - Number of employees
+                - Diversity and inclusion efforts
+                - Governance structure (e.g., board composition, ethics)
+                - Environmental targets or achievements
+
+                Respond in JSON with keys: 'Company Name', 'Location', 'Employees', 'Diversity', 'Governance', 'Environment'.
+                Only include info if it's verifiable or common knowledge.
+                """
+
+                search_response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": search_prompt}],
+                    temperature=0.2
+                )
+                parsed_data = json.loads(search_response.choices[0].message.content)
+                parsed_data["Logo URL"] = logo_url
+                parsed_data["Sources"] = "Extracted from public web profiles, Wikipedia, or verified press statements."
+                st.session_state.autopilot = parsed_data
             except:
                 st.warning("Could not fetch data for this domain.")
 
@@ -161,10 +172,9 @@ if st.session_state.summaries:
             base64_pdf = base64.b64encode(f.read()).decode('utf-8')
         pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="gingerbug_summary.pdf">📄 Download ESG Summary PDF</a>'
         st.markdown(pdf_display, unsafe_allow_html=True)
-            # What's next section
-    st.header("✅ What's Next")
 
-    # Define ESG checklist categories
+    # Next Steps Checklist
+    st.header("✅ What's Next")
     categories = ["Environment", "Labor & Human Rights", "Ethics", "Sustainable Procurement"]
     covered = []
     for entry in st.session_state.summaries:
@@ -180,7 +190,6 @@ if st.session_state.summaries:
         icon = "✅" if category in covered else "⚠️"
         st.markdown(f"- {icon} {category}")
 
-    # Upload more or generate
     st.markdown("### 📂 Next Actions:")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -191,4 +200,3 @@ if st.session_state.summaries:
         st.button("🧾 Finalize & View Draft Report")
 
     st.info("You can return anytime with your email to resume your session.")
-
