@@ -28,7 +28,7 @@ mode = st.radio("How would you like to start?", [
 with st.expander("📋 Beginner's Document Checklist (Click to view)"):
     st.markdown("#### VSME Report")
     st.markdown("""
-- Invoices (electricity, water, waste) — PDF/XLSX  
+- Invoices (electricity, water, waste) -- PDF/XLSX  
 - HR Data (gender ratio, contracts) — XLSX/DOCX  
 - Org Chart — PDF/DOCX  
 - Policies (HR, conduct) — PDF/DOCX  
