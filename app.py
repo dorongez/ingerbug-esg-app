@@ -154,9 +154,10 @@ if st.session_state.summaries:
     st.header("📊 ESG Report Summary Dashboard")
     for entry in st.session_state.summaries:
         st.markdown(f"**{entry['file']}**")
-st.text_area("Summary", entry['summary'], height=150, key=f"summary_{entry['file']}")
+        st.text_area("Summary", entry['summary'], height=150, key=f"summary_{entry['file']}")
+
     # Export button
-    if st.button("📥 Export Summaries to PDF"):
+        if st.button("📥 Export Summaries to PDF"):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
@@ -194,8 +195,29 @@ st.text_area("Summary", entry['summary'], height=150, key=f"summary_{entry['file
     with col1:
         st.button("📤 Upload More Files")
     with col2:
-        st.button("✨ Generate Missing Policies")
+        if st.button("✨ Generate Missing Policies"):
+            missing = [c for c in categories if c not in covered]
+            for cat in missing:
+                st.subheader(f"✍️ Draft for {cat}")
+                prompt = f"Generate a credible, sourced ESG policy for the category: {cat}, tailored to SMEs preparing EcoVadis reports."
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.4
+                )
+                draft = response.choices[0].message.content
+                st.text_area(f"{cat} Draft", draft, height=300, key=f"draft_{cat}")
+                st.session_state.drafts[cat] = draft
     with col3:
-        st.button("🧾 Finalize & View Draft Report")
+        if st.button("🧾 Finalize & View Draft Report"):
+            st.subheader("📘 ESG Report Draft")
+            for entry in st.session_state.summaries:
+                st.markdown(f"### {entry['file']}")
+                st.markdown(entry['summary'])
+            if st.session_state.drafts:
+                st.subheader("✍️ Drafted Policies")
+                for cat, draft in st.session_state.drafts.items():
+                    st.markdown(f"### {cat}")
+                    st.markdown(draft)
 
     st.info("You can return anytime with your email to resume your session.")
