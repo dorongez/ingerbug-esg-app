@@ -143,7 +143,7 @@ if uploaded_files:
         st.success("✅ Analysis complete. See 'Download All Summaries' above.")
 
         st.header("🔄 What's Next?")
-st.markdown("""
+        st.markdown("""
 1. ✅ **Review summaries** and download them using the link above.  
 2. 📌 **Check missing policies or gaps** in your reporting.  
 3. 🧠 **Use the ESG Roadmap** (above) to guide your reporting journey.  
@@ -151,22 +151,22 @@ st.markdown("""
 5. 📊 *Track progress in your dashboard below.*
 
 🔒 Your files are not stored. This is a secure session.
-""")
+        """)
 
-# Optional progress bar or dashboard preview
-completed_sections = ["Summary Analysis"]
-if report_goal:
-    completed_sections.append("Roadmap Generated")
-progress = int((len(completed_sections) / 5) * 100)
-st.progress(progress, text=f"ESG Setup Progress: {progress}%")
+        # Optional progress bar or dashboard preview
+        completed_sections = ["Summary Analysis"]
+        if report_goal:
+            completed_sections.append("Roadmap Generated")
+        progress = int((len(completed_sections) / 5) * 100)
+        st.progress(progress, text=f"ESG Setup Progress: {progress}%")
 
-# Optional: List of upcoming features or report status
-dashboard_data = {
-    "Uploaded Docs": len(uploaded_files),
-    "Summarized": len(doc_summaries),
-    "Roadmap Created": "Yes" if "Roadmap Generated" in completed_sections else "No",
-    "Policies Identified": "✔️ Auto-tagged",
-    "Next Feature": "Live dashboard with ESG scoring"
-}
-st.markdown("### 🧭 Dashboard Preview")
-st.dataframe(pd.DataFrame([dashboard_data]))
+        # Optional: List of upcoming features or report status
+        dashboard_data = {
+            "Uploaded Docs": len(uploaded_files),
+            "Summarized": len(doc_summaries),
+            "Roadmap Created": "Yes" if "Roadmap Generated" in completed_sections else "No",
+            "Policies Identified": "✔️ Auto-tagged",
+            "Next Feature": "Live dashboard with ESG scoring"
+        }
+        st.markdown("### 🧭 Dashboard Preview")
+        st.dataframe(pd.DataFrame([dashboard_data]))
