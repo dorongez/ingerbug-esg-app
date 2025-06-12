@@ -1,12 +1,13 @@
 import streamlit as st
-import openai
+from openai import OpenAI
 import os
 import io
 import docx
 from PyPDF2 import PdfReader
 import pandas as pd
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 st.set_page_config(page_title="GingerBug ESG Assistant", layout="wide")
 st.title("🌱 GingerBug - Release your sustainable power")
@@ -59,12 +60,12 @@ if st.button("Generate ESG Roadmap"):
     with st.spinner("Generating roadmap using GPT-4o..."):
         prompt = f"""You are GingerBug, a sustainability assistant. Help a company in the {industry} sector with {employees} employees in {location} prepare for {', '.join(report_goal)}.
 Generate an 8-step ESG roadmap starting from onboarding to first report submission."""
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
-        roadmap = response['choices'][0]['message']['content']
+        roadmap = response.choices[0].message.content
         st.subheader("📋 Your ESG Roadmap")
         st.markdown(roadmap)
 
@@ -136,12 +137,12 @@ if uploaded_files:
 
 --- Document Content End ---
 """
-                response = openai.ChatCompletion.create(
+                response = client.chat.completions.create(
                     model="gpt-4o",
                     messages=[{"role": "user", "content": gpt_prompt}],
                     temperature=0.5
                 )
-                summary_text = response["choices"][0]["message"]["content"]
+                summary_text = response.choices[0].message.content
                 summaries.append((uploaded_file.name, summary_text))
                 st.subheader(f"📄 {uploaded_file.name} Summary")
                 st.markdown(summary_text)
@@ -176,12 +177,12 @@ with tab2:
     ])
     if st.button("Generate Draft Policy"):
         draft_prompt = f"Generate a clear, professional {policy_needed} suitable for an SME starting ESG reporting. Include 3-5 bullet points in plain language."
-        draft_response = openai.ChatCompletion.create(
+        draft_response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": draft_prompt}],
             temperature=0.6
         )
-        policy_text = draft_response["choices"][0]["message"]["content"]
+        policy_text = draft_response.choices[0].message.content
         drafts[policy_needed] = policy_text
         st.markdown(f"##### 📄 {policy_needed}")
         st.text_area("Review and edit your policy draft below", value=policy_text, height=300)
@@ -199,12 +200,12 @@ Provide scores (0-5) for:
 Document Summary:
 {summary}
 """
-        score_response = openai.ChatCompletion.create(
+        score_response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": score_prompt}],
             temperature=0.5
         )
-        score_text = score_response["choices"][0]["message"]["content"]
+        score_text = score_response.choices[0].message.content
         esg_scores[file_name] = score_text
         st.markdown(f"**{file_name}**")
         st.markdown(score_text)
