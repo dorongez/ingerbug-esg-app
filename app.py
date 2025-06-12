@@ -21,10 +21,7 @@ st.title("🌱 GingerBug - Release your sustainable power")
 if st.button("🔄 Start Over"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-    try:
-        st.rerun()
-    except Exception:
-        st.experimental_rerun()
+    st.rerun()
 
 # Email collection
 st.markdown("### ✉️ Enter your email to personalize your experience")
@@ -41,9 +38,11 @@ if 'summaries' not in st.session_state:
 if 'drafts' not in st.session_state:
     st.session_state.drafts = {}
 
-st.markdown("""Welcome to GingerBug, your AI-powered ESG reporting companion for VSME, EcoVadis, and CSRD prep.
+st.markdown("""
+Welcome to GingerBug, your AI-powered ESG reporting companion for VSME, EcoVadis, and CSRD prep.
 
-Choose how you'd like to begin your sustainability journey below.""")
+Choose how you'd like to begin your sustainability journey below.
+""")
 
 # Mode selection
 st.header("🖜️ Choose Your Mode")
@@ -96,6 +95,15 @@ if 'autopilot' in st.session_state:
 # Upload files (Quick Start & Guided Upload)
 if mode in ["Quick Start (Let AI work with what I upload)", "Guided Upload (Step-by-step document upload)"]:
     st.subheader("📤 Upload your documents")
+
+    if mode == "Guided Upload (Step-by-step document upload)":
+        with st.expander("📌 EcoVadis Categories Checklist"):
+            st.markdown("**Environment:** Utility bills, carbon policy, waste reduction plan")
+            st.markdown("**Labor & Human Rights:** HR policy, contracts, diversity reports")
+            st.markdown("**Ethics:** Code of conduct, anti-bribery policies")
+            st.markdown("**Sustainable Procurement:** Supplier code of conduct, risk policies")
+            st.markdown("_Missing something? GingerBug can help you draft missing policies._")
+
     uploaded_files = st.file_uploader("Upload multiple ESG-related files:", type=["pdf", "docx", "xlsx"], accept_multiple_files=True)
 
     def extract_text_from_file(uploaded_file):
