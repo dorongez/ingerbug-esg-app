@@ -154,8 +154,7 @@ if st.session_state.summaries:
     st.header("📊 ESG Report Summary Dashboard")
     for entry in st.session_state.summaries:
         st.markdown(f"**{entry['file']}**")
-        st.text_area("Summary", entry['summary'], height=150)
-
+st.text_area("Summary", entry['summary'], height=150, key=f"summary_{entry['file']}")
     # Export button
     if st.button("📥 Export Summaries to PDF"):
         pdf = FPDF()
