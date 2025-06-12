@@ -63,7 +63,7 @@ if st.button("Generate ESG Roadmap"):
 Generate an 8-step ESG roadmap starting from onboarding to first report submission."""
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7
             )
@@ -114,7 +114,7 @@ if uploaded_files:
                 gpt_prompt = f"You are an ESG assistant. Summarize the ESG-relevant contents of this document:\n{text[:4000]}"
                 try:
                     response = client.chat.completions.create(
-                        model="gpt-4o",
+                        model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": gpt_prompt}],
                         temperature=0.3
                     )
