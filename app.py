@@ -6,7 +6,7 @@ import docx
 from PyPDF2 import PdfReader
 import pandas as pd
 
-# Initialize OpenAI client
+# Initialize OpenAI client with secure key from Streamlit secrets
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.set_page_config(page_title="GingerBug ESG Assistant", layout="wide")
@@ -14,8 +14,7 @@ st.title("🌱 GingerBug - Release your sustainable power")
 
 st.markdown("""Welcome to GingerBug, your AI-powered ESG reporting companion for VSME, EcoVadis, and CSRD prep.
 
-Choose how you'd like to begin your sustainability journey below.""")""")
-
+Choose how you'd like to begin your sustainability journey below.""")
 
 # Mode selection
 st.header("🗜️ Choose Your Mode")
@@ -31,22 +30,22 @@ with st.expander("📋 Beginner's Document Checklist (Click to view)"):
 - Invoices (electricity, water, waste) -- PDF/XLSX  
 - HR Data (gender ratio, contracts) -- XLSX/DOCX  
 - Org Chart -- PDF/DOCX  
-- Policies (HR, conduct) — PDF/DOCX  
-- Facility List — XLSX  
+- Policies (HR, conduct) -- PDF/DOCX  
+- Facility List -- XLSX  
     """)
     st.markdown("#### EcoVadis Submission")
     st.markdown("""
-- Policies (ethics, environment) — PDF/DOCX  
-- Supplier Policy — PDF/DOCX  
-- Trainings — XLSX/PPTX  
-- GHG Reports — XLSX/PDF  
+- Policies (ethics, environment) -- PDF/DOCX  
+- Supplier Policy -- PDF/DOCX  
+- Trainings -- XLSX/PPTX  
+- GHG Reports -- XLSX/PDF  
     """)
     st.markdown("#### CSRD Preparation")
     st.markdown("""
-- Risk Matrix — XLSX/DOCX  
-- Governance Structure — PDF/DOCX  
-- Stakeholder Engagement Summaries — PDF/DOCX  
-- Internal Audit Files — PDF  
+- Risk Matrix -- XLSX/DOCX  
+- Governance Structure -- PDF/DOCX  
+- Stakeholder Engagement Summaries -- PDF/DOCX  
+- Internal Audit Files -- PDF  
     """)
 
 # Onboarding fields
@@ -76,6 +75,7 @@ if mode == "Quick Start (Let AI work with what I upload)":
     st.markdown("Upload any document you think might help. We'll analyze and extract useful ESG data.")
 else:
     st.markdown("Step-by-step upload with category suggestions. You can skip any part.")
+
 if "VSME Report" in report_goal:
     st.markdown("**VSME Upload Hints:** Invoices, HR policies, org chart, facility list.")
 if "EcoVadis Submission" in report_goal:
