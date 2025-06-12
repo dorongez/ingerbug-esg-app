@@ -161,3 +161,34 @@ if st.session_state.summaries:
             base64_pdf = base64.b64encode(f.read()).decode('utf-8')
         pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="gingerbug_summary.pdf">📄 Download ESG Summary PDF</a>'
         st.markdown(pdf_display, unsafe_allow_html=True)
+            # What's next section
+    st.header("✅ What's Next")
+
+    # Define ESG checklist categories
+    categories = ["Environment", "Labor & Human Rights", "Ethics", "Sustainable Procurement"]
+    covered = []
+    for entry in st.session_state.summaries:
+        content = entry['summary'].lower()
+        if "environment" in content: covered.append("Environment")
+        if "labor" in content or "human rights" in content: covered.append("Labor & Human Rights")
+        if "ethics" in content or "anti-bribery" in content: covered.append("Ethics")
+        if "procurement" in content or "supplier" in content: covered.append("Sustainable Procurement")
+    covered = list(set(covered))
+
+    st.markdown("### 📌 Checklist:")
+    for category in categories:
+        icon = "✅" if category in covered else "⚠️"
+        st.markdown(f"- {icon} {category}")
+
+    # Upload more or generate
+    st.markdown("### 📂 Next Actions:")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.button("📤 Upload More Files")
+    with col2:
+        st.button("✨ Generate Missing Policies")
+    with col3:
+        st.button("🧾 Finalize & View Draft Report")
+
+    st.info("You can return anytime with your email to resume your session.")
+
