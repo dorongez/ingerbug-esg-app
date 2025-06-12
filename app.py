@@ -1,5 +1,6 @@
 import streamlit as st
 from openai import OpenAI
+import openai
 import os
 import io
 import docx
@@ -60,12 +61,17 @@ if st.button("Generate ESG Roadmap"):
     with st.spinner("Generating roadmap using GPT-4o..."):
         prompt = f"""You are GingerBug, a sustainability assistant. Help a company in the {industry} sector with {employees} employees in {location} prepare for {', '.join(report_goal)}.
 Generate an 8-step ESG roadmap starting from onboarding to first report submission."""
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
-        )
-        roadmap = response.choices[0].message.content
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7
+            )
+            roadmap = response.choices[0].message.content
+        except openai.RateLimitError:
+            roadmap = "⚠️ Rate limit exceeded. Please wait a moment and try again."
+        except Exception as e:
+            roadmap = f"⚠️ An error occurred: {str(e)}"
         st.subheader("📋 Your ESG Roadmap")
         st.markdown(roadmap)
 
@@ -106,11 +112,16 @@ if uploaded_files:
         if text:
             with st.spinner("Analyzing file with GPT..."):
                 gpt_prompt = f"You are an ESG assistant. Summarize the ESG-relevant contents of this document:\n{text[:4000]}"
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[{"role": "user", "content": gpt_prompt}],
-                    temperature=0.3
-                )
-                summary = response.choices[0].message.content
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[{"role": "user", "content": gpt_prompt}],
+                        temperature=0.3
+                    )
+                    summary = response.choices[0].message.content
+                except openai.RateLimitError:
+                    summary = "⚠️ Rate limit exceeded. Please wait a moment and try again."
+                except Exception as e:
+                    summary = f"⚠️ An error occurred: {str(e)}"
                 st.markdown("**AI Summary:**")
                 st.write(summary)
