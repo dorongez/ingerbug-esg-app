@@ -171,6 +171,26 @@ if st.session_state.summaries:
     pdf_data = create_pdf(st.session_state.summaries)
     st.download_button("📥 Download ESG Summary Report (PDF)", pdf_data, file_name="GingerBug_ESG_Summary.pdf")
 
+# ESG Progress Dashboard
+st.subheader("📊 ESG Progress Dashboard")
+goals = {
+    "VSME Report": ["Invoices", "HR Data", "Org Chart", "Policies", "Facility List"],
+    "EcoVadis Submission": ["Policies", "Supplier Policy", "Trainings", "GHG Reports"],
+    "CSRD Prep": ["Risk Matrix", "Governance Structure", "Stakeholder Engagement", "Internal Audit Files"]
+}
+
+progress_data = {}
+for goal in report_goal:
+    completed = 0
+    total = len(goals[goal])
+    for doc in goals[goal]:
+        if any(doc.lower() in f.name.lower() for f in uploaded_files):
+            completed += 1
+    progress = int((completed / total) * 100)
+    progress_data[goal] = progress
+    st.markdown(f"**{goal}**")
+    st.progress(progress, text=f"{completed} of {total} documents uploaded")
+
 # Traffic light ESG score (placeholder logic)
 st.subheader("🚦 ESG Readiness Indicator")
 if uploaded_files:
