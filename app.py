@@ -6,7 +6,7 @@ import docx
 from PyPDF2 import PdfReader
 import pandas as pd
 
-# Initialize OpenAI client with secure key from Streamlit secrets
+# Initialize OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.set_page_config(page_title="GingerBug ESG Assistant", layout="wide")
@@ -75,10 +75,42 @@ if mode == "Quick Start (Let AI work with what I upload)":
     st.markdown("Upload any document you think might help. We'll analyze and extract useful ESG data.")
 else:
     st.markdown("Step-by-step upload with category suggestions. You can skip any part.")
-
 if "VSME Report" in report_goal:
     st.markdown("**VSME Upload Hints:** Invoices, HR policies, org chart, facility list.")
 if "EcoVadis Submission" in report_goal:
     st.markdown("**EcoVadis Upload Hints:** Code of conduct, supplier policy, training reports, emissions.")
 if "CSRD Prep" in report_goal:
     st.markdown("**CSRD Upload Hints:** Risk matrix, stakeholder engagement, internal audits.")
+
+# File uploader and processing
+st.header("3. Upload Files")
+uploaded_files = st.file_uploader("Upload your ESG-related documents", type=["pdf", "docx", "xlsx"], accept_multiple_files=True)
+
+if uploaded_files:
+    for uploaded_file in uploaded_files:
+        file_details = {"filename": uploaded_file.name, "type": uploaded_file.type, "size": uploaded_file.size}
+        st.write(file_details)
+
+        if uploaded_file.type == "application/pdf":
+            reader = PdfReader(uploaded_file)
+            text = "\n".join([page.extract_text() or "" for page in reader.pages])
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            doc = docx.Document(uploaded_file)
+            text = "\n".join([p.text for p in doc.paragraphs])
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            df = pd.read_excel(uploaded_file)
+            text = df.to_string()
+        else:
+            text = "Unsupported file type."
+
+        if text:
+            with st.spinner("Analyzing file with GPT..."):
+                gpt_prompt = f"You are an ESG assistant. Summarize the ESG-relevant contents of this document:\n{text[:4000]}"
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": gpt_prompt}],
+                    temperature=0.3
+                )
+                summary = response.choices[0].message.content
+                st.markdown("**AI Summary:**")
+                st.write(summary)
