@@ -18,14 +18,11 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 st.set_page_config(page_title="GingerBug ESG Assistant", layout="wide")
 st.title("🌱 GingerBug - Release your sustainable power")
 
-# Restart button — safe fallback for Streamlit Cloud
+# Restart button
 if st.button("🔄 Start Over"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-    try:
-        st.experimental_rerun()  # fallback works better on Streamlit Cloud
-    except Exception:
-        pass  # no rerun available; app just clears state
+    st.experimental_rerun()
 
 # Email collection
 st.markdown("### ✉️ Enter your email to personalize your experience")
