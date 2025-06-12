@@ -87,3 +87,59 @@ if uploaded_file:
 
 st.markdown("---")
 st.markdown("🚀 Powered by GPT-4o | GingerBug.ai")
+import tempfile
+from PyPDF2 import PdfReader
+import docx
+import pandas as pd
+
+# Function to extract text from PDF
+def extract_text_from_pdf(uploaded_file):
+    reader = PdfReader(uploaded_file)
+    return "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+
+# Function to extract text from DOCX
+def extract_text_from_docx(uploaded_file):
+    doc = docx.Document(uploaded_file)
+    return "\n".join([para.text for para in doc.paragraphs])
+
+# Function to extract text from XLSX
+def extract_text_from_xlsx(uploaded_file):
+    dfs = pd.read_excel(uploaded_file, sheet_name=None)
+    text = ""
+    for sheet_name, df in dfs.items():
+        text += f"--- Sheet: {sheet_name} ---\n"
+        text += df.astype(str).to_string(index=False)
+        text += "\n"
+    return text
+
+# File analysis and GPT summary
+if uploaded_file:
+    with st.spinner("🔍 Analyzing your document..."):
+        file_text = ""
+        filetype = uploaded_file.name.lower()
+
+        if filetype.endswith(".pdf"):
+            file_text = extract_text_from_pdf(uploaded_file)
+        elif filetype.endswith(".docx"):
+            file_text = extract_text_from_docx(uploaded_file)
+        elif filetype.endswith(".xlsx"):
+            file_text = extract_text_from_xlsx(uploaded_file)
+        else:
+            st.error("Unsupported file type.")
+
+        if file_text:
+            text_snippet = file_text[:6000]  # Safe for GPT token limit
+            gpt_prompt = f"""You are an ESG assistant. Analyze the following document and summarize any relevant environmental, social, or governance data. Highlight potential use for VSME, EcoVadis, or CSRD reporting:
+
+{text_snippet}
+
+If content is irrelevant, say so.
+"""
+            summary_response = openai.ChatCompletion.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": gpt_prompt}],
+                temperature=0.5
+            )
+            st.subheader("📄 GPT Summary")
+            st.markdown(summary_response["choices"][0]["message"]["content"])
+
