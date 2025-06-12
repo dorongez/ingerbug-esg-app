@@ -1,7 +1,7 @@
 streamlit
-openai>=1.3.5
+openai>=1.2.0
 PyPDF2
 python-docx
 pandas
-openpyxl
 fpdf
+requests
