@@ -45,7 +45,7 @@ Choose how you'd like to begin your sustainability journey below.
 """)
 
 # Mode selection
-st.header("🖜️ Choose Your Mode")
+st.header("🔜️ Choose Your Mode")
 mode = st.radio("How would you like to start?", [
     "Quick Start (Let AI work with what I upload)",
     "Guided Upload (Step-by-step document upload)",
@@ -105,7 +105,7 @@ if 'autopilot' in st.session_state:
 
 # Upload files (Quick Start & Guided Upload)
 if mode in ["Quick Start (Let AI work with what I upload)", "Guided Upload (Step-by-step document upload)"]:
-    st.subheader("📤 Upload your documents")
+    st.subheader("📄 Upload your documents")
 
     if mode == "Guided Upload (Step-by-step document upload)":
         with st.expander("📌 EcoVadis Categories Checklist"):
@@ -154,10 +154,9 @@ if st.session_state.summaries:
     st.header("📊 ESG Report Summary Dashboard")
     for entry in st.session_state.summaries:
         st.markdown(f"**{entry['file']}**")
-        st.text_area("Summary", entry['summary'], height=150, key=f"summary_{entry['file']}")
+        st.text_area(f"Summary - {entry['file']}", entry['summary'], height=150, key=f"summary_{entry['file']}")
 
-    # Export button
-        if st.button("📥 Export Summaries to PDF"):
+    if st.button("📅 Export Summaries to PDF"):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
@@ -173,7 +172,6 @@ if st.session_state.summaries:
         pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="gingerbug_summary.pdf">📄 Download ESG Summary PDF</a>'
         st.markdown(pdf_display, unsafe_allow_html=True)
 
-    # Next Steps Checklist
     st.header("✅ What's Next")
     categories = ["Environment", "Labor & Human Rights", "Ethics", "Sustainable Procurement"]
     covered = []
@@ -193,7 +191,7 @@ if st.session_state.summaries:
     st.markdown("### 📂 Next Actions:")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.button("📤 Upload More Files")
+        st.button("📄 Upload More Files")
     with col2:
         if st.button("✨ Generate Missing Policies"):
             missing = [c for c in categories if c not in covered]
@@ -209,8 +207,8 @@ if st.session_state.summaries:
                 st.text_area(f"{cat} Draft", draft, height=300, key=f"draft_{cat}")
                 st.session_state.drafts[cat] = draft
     with col3:
-        if st.button("🧾 Finalize & View Draft Report"):
-            st.subheader("📘 ESG Report Draft")
+        if st.button("🦾 Finalize & View Draft Report"):
+            st.subheader("📛 ESG Report Draft")
             for entry in st.session_state.summaries:
                 st.markdown(f"### {entry['file']}")
                 st.markdown(entry['summary'])
