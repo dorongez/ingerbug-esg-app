@@ -32,13 +32,21 @@ if user_email:
 # Company info and reporting type
 st.markdown("### 🏢 Company Info")
 st.session_state.company_name = st.text_input("Company Name", st.session_state.get("company_name", ""))
+st.session_state.company_url = st.text_input("Company Website URL", st.session_state.get("company_url", ""))
 st.session_state.country = st.text_input("Country", st.session_state.get("country", ""))
 st.session_state.report_goal = st.multiselect("📊 Reporting Goals", ["EcoVadis", "VSME", "CSRD Prep", "GRI"], default=["EcoVadis"])
+
+# Load logo if domain present
+if st.session_state.get("company_url"):
+    try:
+        st.image(f"https://logo.clearbit.com/{st.session_state.company_url}", width=100)
+    except:
+        st.warning("Could not load logo from Clearbit")
 
 # Language toggle
 lang = st.selectbox("🌐 Choose language", ["English", "Français", "Deutsch", "Español"])
 
-# Load session state
+# Initialize session state
 if 'summaries' not in st.session_state:
     st.session_state.summaries = []
 if 'drafts' not in st.session_state:
@@ -46,8 +54,7 @@ if 'drafts' not in st.session_state:
 
 st.markdown("""
 Welcome to GingerBug, your AI-powered ESG reporting companion for VSME, EcoVadis, CSRD prep, and GRI.
-
-Choose how you'd like to begin your sustainability journey below.
+Choose your preferred mode below.
 """)
 
 # Mode selection
@@ -77,9 +84,7 @@ if mode == "Go Autopilot (Auto-scan from website)":
                 - Diversity and inclusion efforts
                 - Governance structure (e.g., board composition, ethics)
                 - Environmental targets or achievements
-
                 Respond in JSON with keys: 'Company Name', 'Location', 'Employees', 'Diversity', 'Governance', 'Environment'.
-                Only include info if it's verifiable or common knowledge.
                 """
 
                 search_response = client.chat.completions.create(
@@ -113,6 +118,9 @@ st.markdown("---")
 st.header("📂 Upload Your ESG Documents")
 files = st.file_uploader("Upload ESG-related documents (PDF, DOCX, XLSX)", type=["pdf", "docx", "xlsx"], accept_multiple_files=True)
 
+required_docs = ["Environmental Policy", "Code of Conduct", "Supplier Code", "Diversity Statement", "GHG Emissions Report"]
+missing_docs = required_docs.copy()
+
 if files:
     st.markdown("## 🔎 Summarizing Uploaded Files")
     for file in files:
@@ -132,20 +140,23 @@ if files:
             text = ""
 
         prompt = f"""
-        You are an ESG policy analyst. Summarize the content of this file in 5-6 lines focusing on ESG relevance.
-        Identify any frameworks mentioned (GRI, SASB, etc.) and highlight any missing topics relevant to EcoVadis or CSRD.
-        Input:
-        {text[:5000]}
+        Summarize this document in a few lines for ESG reporting.
+        List any ESG frameworks (GRI, SASB) mentioned.
+        Also identify the document type and whether it's Environmental, Social, or Governance.
+        {text[:4000]}
         """
-
         result = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3
         )
-
         summary = result.choices[0].message.content
         st.session_state.summaries.append({"file": file_name, "summary": summary})
+
+        for doc_type in required_docs:
+            if doc_type.lower() in file_name.lower():
+                if doc_type in missing_docs:
+                    missing_docs.remove(doc_type)
 
     st.success("Summaries generated.")
 
@@ -155,33 +166,33 @@ if st.session_state.summaries:
         st.markdown(f"**{entry['file']}**")
         st.text_area(f"Summary - {entry['file']}", entry['summary'], height=150, key=f"summary_{entry['file']}_{i}")
 
-    if st.button("📥 Export Summaries to PDF"):
+    st.markdown("---")
+    st.subheader("🧩 Gap Analysis")
+    if missing_docs:
+        st.warning(f"We recommend adding the following documents: {', '.join(missing_docs)}")
+        if st.button("✨ Generate Missing Policies"):
+            for topic in missing_docs:
+                prompt = f"Create a professional draft for a missing ESG document: {topic}. Use verified best practices only."
+                draft = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3
+                )
+                st.text_area(f"Draft - {topic}", draft.choices[0].message.content, height=200, key=f"draft_{topic}")
+    else:
+        st.success("All required documents detected. You can export your full report.")
+
+    if st.button("📥 Export Report to PDF"):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
         for entry in st.session_state.summaries:
             pdf.multi_cell(0, 10, f"{entry['file']}\n{entry['summary']}\n")
-        pdf_output = f"summaries_{st.session_state.get('company_name','report')}.pdf"
+        pdf_output = f"GingerBug_Report_{st.session_state.get('company_name','report')}.pdf"
         pdf.output(pdf_output)
         with open(pdf_output, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
             href = f'<a href="data:application/pdf;base64,{b64}" download="{pdf_output}">📥 Download PDF Report</a>'
             st.markdown(href, unsafe_allow_html=True)
 
-    if st.button("🧩 Generate Missing Policies"):
-        st.subheader("📄 Drafting Suggested Policies")
-        missing_topics = ["Environmental Policy", "Diversity & Inclusion", "Code of Conduct", "Whistleblower Policy"]
-        for topic in missing_topics:
-            draft_prompt = f"""
-            Draft a short and professional {topic} suitable for a small to mid-sized company.
-            Follow best practices and based only on verified ESG guidance such as GRI or EcoVadis expectations.
-            """
-            draft = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": draft_prompt}],
-                temperature=0.3
-            )
-            st.text_area(f"✍️ Draft - {topic}", draft.choices[0].message.content, height=200, key=f"draft_{topic}")
-
-    st.markdown("---")
-    st.success("Next step: Review gaps, adjust summaries or policies, and export your full report.")
+    st.success("Next step: Review, complete drafts, and download your ESG summary report.")
