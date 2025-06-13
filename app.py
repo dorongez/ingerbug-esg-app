@@ -82,8 +82,9 @@ if uploaded_files:
     for file in uploaded_files:
         content = extract_text(file)
         summary = summarize_text(content)
+        key_safe = file.name.replace("/", "_").replace(".", "_")
         st.session_state.summaries.append({"file": file.name, "summary": summary})
-        st.text_area(f"Summary - {file.name}", summary, height=150, key=f"summary_{file.name}")
+        st.text_area(f"Summary - {file.name}", summary, height=150, key=f"summary_{key_safe}_{len(st.session_state.summaries)}")
 
 # Show traffic light indicator based on summary completeness
 if st.session_state.summaries:
@@ -112,7 +113,8 @@ if st.button("✨ Generate Missing Policies"):
 if st.session_state.get("drafts"):
     st.markdown("## 📄 Drafted Policies")
     for title, text in st.session_state.drafts.items():
-        st.text_area(f"{title}", text, height=200, key=f"draft_{title}")
+        key_safe = title.replace(" ", "_").replace("/", "_")
+        st.text_area(f"{title}", text, height=200, key=f"draft_{key_safe}_{len(st.session_state.drafts)}")
 
 # Enhanced final report export
 if st.button("📥 Export Full ESG Report"):
@@ -137,7 +139,8 @@ if st.button("📥 Export Full ESG Report"):
         pdf.multi_cell(0, 10, "Uploaded Document Summaries")
         pdf.set_font("Arial", size=12)
         for entry in st.session_state.summaries:
-            pdf.multi_cell(0, 10, f"{entry['file']}\n{entry['summary']}\n")
+            safe_summary = entry['summary'].encode('latin-1', 'replace').decode('latin-1')
+            pdf.multi_cell(0, 10, f"{entry['file']}\n{safe_summary}\n")
 
         if st.session_state.drafts:
             pdf.add_page()
@@ -145,7 +148,8 @@ if st.button("📥 Export Full ESG Report"):
             pdf.multi_cell(0, 10, "Generated Policies")
             pdf.set_font("Arial", size=12)
             for topic, content in st.session_state.drafts.items():
-                pdf.multi_cell(0, 10, f"{topic}\n{content}\n")
+                safe_content = content.encode('latin-1', 'replace').decode('latin-1')
+                pdf.multi_cell(0, 10, f"{topic}\n{safe_content}\n")
 
         full_pdf_name = f"GingerBug_Full_Report_{st.session_state.get('company_name', 'report')}.pdf"
         pdf.output(full_pdf_name)
@@ -155,5 +159,19 @@ if st.button("📥 Export Full ESG Report"):
             st.markdown(href, unsafe_allow_html=True)
 
 # Placeholder for dashboard
-st.markdown("### 📊 ESG Report Summary Dashboard (Coming Soon)")
-st.info("A dashboard view will allow you to track ESG gaps, compare progress by section, and view recommendations.")
+st.markdown("### 📊 ESG Report Summary Dashboard")
+if st.session_state.summaries:
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Uploaded Documents", len(st.session_state.summaries))
+        st.metric("Generated Policies", len(st.session_state.drafts))
+    with col2:
+        st.markdown("**Reporting Goals:**")
+        for goal in st.session_state.report_goal:
+            st.markdown(f"- ✅ {goal}")
+
+    st.markdown("---")
+    st.markdown("**Next Steps:**")
+    st.markdown("1. Upload missing documents based on your reporting goal")
+    st.markdown("2. Finalize your policies (review and export)")
+    st.markdown("3. Use the generated full report for your ESG submission or as a draft")
