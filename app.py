@@ -29,6 +29,12 @@ user_email = st.text_input("Your email address (we'll use this to save your sess
 if user_email:
     st.session_state.user_email = user_email
 
+# Company info and reporting type
+st.markdown("### 🏢 Company Info")
+st.session_state.company_name = st.text_input("Company Name", st.session_state.get("company_name", ""))
+st.session_state.country = st.text_input("Country", st.session_state.get("country", ""))
+st.session_state.report_goal = st.multiselect("📊 Reporting Goals", ["EcoVadis", "VSME", "CSRD Prep", "GRI"], default=["EcoVadis"])
+
 # Language toggle
 lang = st.selectbox("🌐 Choose language", ["English", "Français", "Deutsch", "Español"])
 
@@ -39,13 +45,13 @@ if 'drafts' not in st.session_state:
     st.session_state.drafts = {}
 
 st.markdown("""
-Welcome to GingerBug, your AI-powered ESG reporting companion for VSME, EcoVadis, and CSRD prep.
+Welcome to GingerBug, your AI-powered ESG reporting companion for VSME, EcoVadis, CSRD prep, and GRI.
 
 Choose how you'd like to begin your sustainability journey below.
 """)
 
 # Mode selection
-st.header("🔜️ Choose Your Mode")
+st.header("🖜️ Choose Your Mode")
 mode = st.radio("How would you like to start?", [
     "Quick Start (Let AI work with what I upload)",
     "Guided Upload (Step-by-step document upload)",
@@ -95,127 +101,87 @@ if 'autopilot' in st.session_state:
     if data.get('Logo URL'):
         st.image(data['Logo URL'], width=100)
     st.markdown(f"**Company Name:** {data.get('Company Name', 'N/A')}")
-    st.markdown(f"**Location:** {data.get('HQ', 'N/A')}")
+    st.markdown(f"**Location:** {data.get('Location', 'N/A')}")
     st.markdown(f"**Employees:** {data.get('Employees', 'N/A')}")
-    st.markdown(f"**Diversity:** {data.get('Diversity Statement', 'N/A')}")
+    st.markdown(f"**Diversity:** {data.get('Diversity', 'N/A')}")
     st.markdown(f"**Governance:** {data.get('Governance', 'N/A')}")
     st.markdown(f"**Environment:** {data.get('Environment', 'N/A')}")
     if st.toggle("Show data source info"):
         st.info(data.get('Sources', ''))
 
-# Upload files (Quick Start & Guided Upload)
-if mode in ["Quick Start (Let AI work with what I upload)", "Guided Upload (Step-by-step document upload)"]:
-    st.subheader("📄 Upload your documents")
+st.markdown("---")
+st.header("📂 Upload Your ESG Documents")
+files = st.file_uploader("Upload ESG-related documents (PDF, DOCX, XLSX)", type=["pdf", "docx", "xlsx"], accept_multiple_files=True)
 
-    if mode == "Guided Upload (Step-by-step document upload)":
-        with st.expander("📌 EcoVadis Categories Checklist"):
-            st.markdown("**Environment:** Utility bills, carbon policy, waste reduction plan")
-            st.markdown("**Labor & Human Rights:** HR policy, contracts, diversity reports")
-            st.markdown("**Ethics:** Code of conduct, anti-bribery policies")
-            st.markdown("**Sustainable Procurement:** Supplier code of conduct, risk policies")
-            st.markdown("_Missing something? GingerBug can help you draft missing policies._")
+if files:
+    st.markdown("## 🔎 Summarizing Uploaded Files")
+    for file in files:
+        file_name = file.name
+        file_bytes = file.read()
 
-    uploaded_files = st.file_uploader("Upload multiple ESG-related files:", type=["pdf", "docx", "xlsx"], accept_multiple_files=True)
+        if file_name.endswith(".pdf"):
+            reader = PdfReader(io.BytesIO(file_bytes))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        elif file_name.endswith(".docx"):
+            doc = docx.Document(io.BytesIO(file_bytes))
+            text = "\n".join([para.text for para in doc.paragraphs])
+        elif file_name.endswith(".xlsx"):
+            df = pd.read_excel(io.BytesIO(file_bytes))
+            text = df.to_string()
+        else:
+            text = ""
 
-    def extract_text_from_file(uploaded_file):
-        if uploaded_file.type == "application/pdf":
-            pdf_reader = PdfReader(uploaded_file)
-            return "\n".join([page.extract_text() for page in pdf_reader.pages])
-        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            doc = docx.Document(uploaded_file)
-            return "\n".join([para.text for para in doc.paragraphs])
-        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-            df = pd.read_excel(uploaded_file)
-            return df.to_csv(index=False)
-        return ""
+        prompt = f"""
+        You are an ESG policy analyst. Summarize the content of this file in 5-6 lines focusing on ESG relevance.
+        Identify any frameworks mentioned (GRI, SASB, etc.) and highlight any missing topics relevant to EcoVadis or CSRD.
+        Input:
+        {text[:5000]}
+        """
 
-    if uploaded_files:
-        total_score = 0
-        for uploaded_file in uploaded_files:
-            content = extract_text_from_file(uploaded_file)
-            file_summary = f"Summarize this ESG-related document for compliance reporting:\n\n{content[:4000]}"
-            with st.spinner(f"Analyzing {uploaded_file.name}..."):
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[{"role": "user", "content": file_summary}],
-                    temperature=0.3
-                )
-                summary = response.choices[0].message.content
-                st.session_state.summaries.append({"file": uploaded_file.name, "summary": summary})
-                if any(keyword in summary.lower() for keyword in ["diversity", "carbon", "ethics", "labor"]):
-                    total_score += 1
+        result = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
 
-        if uploaded_files:
-            traffic_color = "🟢" if total_score >= 3 else "🟡" if total_score == 2 else "🔴"
-            st.markdown(f"### ESG Score Indicator: {traffic_color} Based on content coverage")
+        summary = result.choices[0].message.content
+        st.session_state.summaries.append({"file": file_name, "summary": summary})
 
-# Show dashboard
+    st.success("Summaries generated.")
+
 if st.session_state.summaries:
     st.header("📊 ESG Report Summary Dashboard")
-    for entry in st.session_state.summaries:
+    for i, entry in enumerate(st.session_state.summaries):
         st.markdown(f"**{entry['file']}**")
-        st.text_area(f"Summary - {entry['file']}", entry['summary'], height=150, key=f"summary_{entry['file']}")
+        st.text_area(f"Summary - {entry['file']}", entry['summary'], height=150, key=f"summary_{entry['file']}_{i}")
 
-    if st.button("📅 Export Summaries to PDF"):
+    if st.button("📥 Export Summaries to PDF"):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
         for entry in st.session_state.summaries:
-            pdf.cell(200, 10, txt=entry['file'], ln=True, align='L')
-            pdf.multi_cell(0, 10, txt=entry['summary'])
-            pdf.ln()
-        output_path = "/tmp/gingerbug_report.pdf"
-        pdf.output(output_path)
+            pdf.multi_cell(0, 10, f"{entry['file']}\n{entry['summary']}\n")
+        pdf_output = f"summaries_{st.session_state.get('company_name','report')}.pdf"
+        pdf.output(pdf_output)
+        with open(pdf_output, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+            href = f'<a href="data:application/pdf;base64,{b64}" download="{pdf_output}">📥 Download PDF Report</a>'
+            st.markdown(href, unsafe_allow_html=True)
 
-        with open(output_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-        pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="gingerbug_summary.pdf">📄 Download ESG Summary PDF</a>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
+    if st.button("🧩 Generate Missing Policies"):
+        st.subheader("📄 Drafting Suggested Policies")
+        missing_topics = ["Environmental Policy", "Diversity & Inclusion", "Code of Conduct", "Whistleblower Policy"]
+        for topic in missing_topics:
+            draft_prompt = f"""
+            Draft a short and professional {topic} suitable for a small to mid-sized company.
+            Follow best practices and based only on verified ESG guidance such as GRI or EcoVadis expectations.
+            """
+            draft = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": draft_prompt}],
+                temperature=0.3
+            )
+            st.text_area(f"✍️ Draft - {topic}", draft.choices[0].message.content, height=200, key=f"draft_{topic}")
 
-    st.header("✅ What's Next")
-    categories = ["Environment", "Labor & Human Rights", "Ethics", "Sustainable Procurement"]
-    covered = []
-    for entry in st.session_state.summaries:
-        content = entry['summary'].lower()
-        if "environment" in content: covered.append("Environment")
-        if "labor" in content or "human rights" in content: covered.append("Labor & Human Rights")
-        if "ethics" in content or "anti-bribery" in content: covered.append("Ethics")
-        if "procurement" in content or "supplier" in content: covered.append("Sustainable Procurement")
-    covered = list(set(covered))
-
-    st.markdown("### 📌 Checklist:")
-    for category in categories:
-        icon = "✅" if category in covered else "⚠️"
-        st.markdown(f"- {icon} {category}")
-
-    st.markdown("### 📂 Next Actions:")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.button("📄 Upload More Files")
-    with col2:
-        if st.button("✨ Generate Missing Policies"):
-            missing = [c for c in categories if c not in covered]
-            for cat in missing:
-                st.subheader(f"✍️ Draft for {cat}")
-                prompt = f"Generate a credible, sourced ESG policy for the category: {cat}, tailored to SMEs preparing EcoVadis reports."
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.4
-                )
-                draft = response.choices[0].message.content
-                st.text_area(f"{cat} Draft", draft, height=300, key=f"draft_{cat}")
-                st.session_state.drafts[cat] = draft
-    with col3:
-        if st.button("🦾 Finalize & View Draft Report"):
-            st.subheader("📛 ESG Report Draft")
-            for entry in st.session_state.summaries:
-                st.markdown(f"### {entry['file']}")
-                st.markdown(entry['summary'])
-            if st.session_state.drafts:
-                st.subheader("✍️ Drafted Policies")
-                for cat, draft in st.session_state.drafts.items():
-                    st.markdown(f"### {cat}")
-                    st.markdown(draft)
-
-    st.info("You can return anytime with your email to resume your session.")
+    st.markdown("---")
+    st.success("Next step: Review gaps, adjust summaries or policies, and export your full report.")
