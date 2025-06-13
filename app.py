@@ -3,9 +3,11 @@ from openai import OpenAI
 import os
 import io
 import docx
+import json
 from PyPDF2 import PdfReader
 import pandas as pd
 import base64
+from collections import defaultdict
 from fpdf import FPDF
 import requests
 
@@ -15,49 +17,43 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 st.set_page_config(page_title="GingerBug ESG Assistant", layout="wide")
 st.title("🌱 GingerBug - Release your sustainable power")
 
-# Restart session
+# Restart button
 if st.button("🔄 Start Over"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
 
-# Email
-st.markdown("### ✉️ Your Email")
-user_email = st.text_input("We'll use this to save your session or send reports", "")
+# Email collection
+st.markdown("### ✉️ Enter your email to personalize your experience")
+user_email = st.text_input("Your email address (we'll use this to save your session or send you your report)", "")
 if user_email:
     st.session_state.user_email = user_email
 
-# Company Info
+# Company info and reporting type
 st.markdown("### 🏢 Company Info")
 st.session_state.company_name = st.text_input("Company Name", st.session_state.get("company_name", ""))
 st.session_state.company_url = st.text_input("Company Website URL", st.session_state.get("company_url", ""))
 st.session_state.country = st.text_input("Country", st.session_state.get("country", ""))
+st.session_state.report_goal = st.multiselect("📊 Reporting Goals", ["EcoVadis", "VSME", "CSRD Prep", "GRI"], default=["EcoVadis"])
 
-# Logo
+# Load logo if domain present
 if st.session_state.get("company_url"):
     try:
         st.image(f"https://logo.clearbit.com/{st.session_state.company_url}", width=100)
     except:
-        st.warning("Logo not found.")
+        st.warning("Could not load logo from Clearbit")
 
-# Reporting Goals
-st.session_state.report_goal = st.multiselect(
-    "📊 Reporting Goals",
-    ["EcoVadis", "VSME", "CSRD Prep", "GRI"],
-    default=["EcoVadis"]
-)
+# Language toggle
+lang = st.selectbox("🌐 Choose language", ["English", "Français", "Deutsch", "Español"])
 
-# Language (placeholder)
-lang = st.selectbox("🌐 Language", ["English", "Français", "Deutsch", "Español"])
-
-# Session init
+# Initialize session state
 if 'summaries' not in st.session_state:
     st.session_state.summaries = []
 if 'drafts' not in st.session_state:
     st.session_state.drafts = {}
 
-# Upload files
-uploaded_files = st.file_uploader("📤 Upload ESG-related documents (PDF, DOCX, XLSX)", accept_multiple_files=True)
+# Upload documents
+uploaded_files = st.file_uploader("📤 Upload ESG documents (PDF, DOCX, XLSX)", accept_multiple_files=True)
 
 def extract_text(file):
     if file.name.endswith(".pdf"):
@@ -89,23 +85,23 @@ if uploaded_files:
         st.session_state.summaries.append({"file": file.name, "summary": summary})
         st.text_area(f"Summary - {file.name}", summary, height=150, key=f"summary_{file.name}")
 
-# Traffic Light
+# Show traffic light indicator based on summary completeness
 if st.session_state.summaries:
+    completeness = len(st.session_state.summaries) / 5
     st.markdown("### 🔦 ESG Readiness")
-    count = len(st.session_state.summaries)
-    if count >= 5:
-        st.success("🟢 Ready: All key documents uploaded.")
-    elif count >= 3:
-        st.warning("🟠 In Progress: Upload more ESG documents.")
+    if completeness >= 1:
+        st.success("🟢 Ready: You have uploaded all key documents.")
+    elif completeness >= 0.6:
+        st.warning("🟠 In Progress: You have uploaded most of the documents.")
     else:
-        st.error("🔴 Incomplete: Please upload more.")
+        st.error("🔴 Incomplete: Please upload more ESG documents.")
 
 # Generate missing policies
 if st.button("✨ Generate Missing Policies"):
     missing = ["Environmental Policy", "Code of Conduct", "Diversity & Inclusion Policy"]
     st.session_state.drafts = {}
     for topic in missing:
-        prompt = f"Create a basic draft of a {topic} for a company in {st.session_state.country} named {st.session_state.company_name}."
+        prompt = f"Create a basic draft of a {topic} for a company in {st.session_state.country} named {st.session_state.company_name}. Please base it only on credible sources."
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
@@ -118,34 +114,46 @@ if st.session_state.get("drafts"):
     for title, text in st.session_state.drafts.items():
         st.text_area(f"{title}", text, height=200, key=f"draft_{title}")
 
-# Export Full Report PDF
+# Enhanced final report export
 if st.button("📥 Export Full ESG Report"):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, f"Company: {st.session_state.get('company_name', '')}")
-    pdf.multi_cell(0, 10, f"Email: {user_email}")
-    pdf.multi_cell(0, 10, f"Country: {st.session_state.get('country', '')}")
-    pdf.multi_cell(0, 10, f"Goals: {', '.join(st.session_state.get('report_goal', []))}")
-
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 14)
-    pdf.multi_cell(0, 10, "📄 Document Summaries")
-    pdf.set_font("Arial", size=12)
-    for entry in st.session_state.summaries:
-        pdf.multi_cell(0, 10, f"{entry['file']}\n{entry['summary']}\n")
-
-    if st.session_state.drafts:
+    with st.spinner("Bundling full ESG report..."):
+        pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", 'B', 14)
-        pdf.multi_cell(0, 10, "📑 Generated Policies")
         pdf.set_font("Arial", size=12)
-        for title, text in st.session_state.drafts.items():
-            pdf.multi_cell(0, 10, f"{title}\n{text}\n")
+        pdf.multi_cell(0, 10, f"Company: {st.session_state.get('company_name', '')}\nEmail: {user_email}\nCountry: {st.session_state.get('country', '')}\n")
+        pdf.multi_cell(0, 10, f"Goals: {', '.join(st.session_state.get('report_goal', []))}\n")
 
-    full_pdf = f"GingerBug_ESG_Report_{st.session_state.get('company_name', 'company')}.pdf"
-    pdf.output(full_pdf)
-    with open(full_pdf, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
-        href = f'<a href="data:application/pdf;base64,{b64}" download="{full_pdf}">📥 Download Full ESG PDF</a>'
-        st.markdown(href, unsafe_allow_html=True)
+        if 'autopilot' in st.session_state:
+            auto = st.session_state['autopilot']
+            pdf.set_font("Arial", 'B', 12)
+            pdf.multi_cell(0, 10, "Autopilot Profile")
+            pdf.set_font("Arial", size=12)
+            for k, v in auto.items():
+                if k != "Logo URL":
+                    pdf.multi_cell(0, 10, f"{k}: {v}")
+
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 12)
+        pdf.multi_cell(0, 10, "Uploaded Document Summaries")
+        pdf.set_font("Arial", size=12)
+        for entry in st.session_state.summaries:
+            pdf.multi_cell(0, 10, f"{entry['file']}\n{entry['summary']}\n")
+
+        if st.session_state.drafts:
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 12)
+            pdf.multi_cell(0, 10, "Generated Policies")
+            pdf.set_font("Arial", size=12)
+            for topic, content in st.session_state.drafts.items():
+                pdf.multi_cell(0, 10, f"{topic}\n{content}\n")
+
+        full_pdf_name = f"GingerBug_Full_Report_{st.session_state.get('company_name', 'report')}.pdf"
+        pdf.output(full_pdf_name)
+        with open(full_pdf_name, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+            href = f'<a href="data:application/pdf;base64,{b64}" download="{full_pdf_name}">📥 Download Full ESG PDF</a>'
+            st.markdown(href, unsafe_allow_html=True)
+
+# Placeholder for dashboard
+st.markdown("### 📊 ESG Report Summary Dashboard (Coming Soon)")
+st.info("A dashboard view will allow you to track ESG gaps, compare progress by section, and view recommendations.")
