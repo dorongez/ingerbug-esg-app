@@ -126,8 +126,11 @@ if st.session_state.get("drafts"):
 class PDF(FPDF):
     def __init__(self):
         super().__init__()
-        self.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
-        self.set_font("DejaVu", size=12)
+        try:
+            self.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
+            self.set_font("DejaVu", size=12)
+        except:
+            self.set_font("Arial", size=12)
 
 if st.button("📅 Export Full ESG Report"):
     with st.spinner("Bundling full ESG report..."):
@@ -149,7 +152,8 @@ if st.button("📅 Export Full ESG Report"):
         pdf.multi_cell(0, 10, "Uploaded Document Summaries")
         pdf.set_font("DejaVu", size=12)
         for entry in st.session_state.summaries:
-            pdf.multi_cell(0, 10, f"{entry['file']}\n{entry['summary']}\n")
+            safe_summary = entry['summary'].encode('latin-1', 'replace').decode('latin-1')
+            pdf.multi_cell(0, 10, f"{entry['file']}\n{safe_summary}\n")
 
         if st.session_state.drafts:
             pdf.add_page()
@@ -157,7 +161,8 @@ if st.button("📅 Export Full ESG Report"):
             pdf.multi_cell(0, 10, "Generated Policies")
             pdf.set_font("DejaVu", size=12)
             for topic, content in st.session_state.drafts.items():
-                pdf.multi_cell(0, 10, f"{topic}\n{content}\n")
+                safe_content = content.encode('latin-1', 'replace').decode('latin-1')
+                pdf.multi_cell(0, 10, f"{topic}\n{safe_content}\n")
 
         full_pdf_name = f"GingerBug_Full_Report_{st.session_state.get('company_name', 'report')}.pdf"
         pdf.output(full_pdf_name)
