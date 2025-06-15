@@ -97,18 +97,24 @@ if st.session_state.summaries:
     else:
         st.error("🔴 Incomplete: Please upload more ESG documents.")
 
-# Generate missing policies
+# Generate missing policies with spinner and exception handling
 if st.button("✨ Generate Missing Policies"):
-    missing = ["Environmental Policy", "Code of Conduct", "Diversity & Inclusion Policy"]
-    st.session_state.drafts = {}
-    for topic in missing:
-        prompt = f"Create a basic draft of a {topic} for a company in {st.session_state.country} named {st.session_state.company_name}. Please base it only on credible sources."
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
-        )
-        st.session_state.drafts[topic] = response.choices[0].message.content.strip()
+    with st.spinner("Generating missing policy drafts..."):
+        missing = ["Environmental Policy", "Code of Conduct", "Diversity & Inclusion Policy"]
+        st.session_state.drafts = {}
+        for i, topic in enumerate(missing):
+            try:
+                st.markdown(f"⏳ Generating: **{topic}**...")
+                prompt = f"Create a basic draft of a {topic} for a company in {st.session_state.country} named {st.session_state.company_name}. Please base it only on credible sources."
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3
+                )
+                st.session_state.drafts[topic] = response.choices[0].message.content.strip()
+                st.success(f"✅ {topic} generated.")
+            except Exception as e:
+                st.error(f"⚠️ Failed to generate {topic}: {str(e)}")
 
 if st.session_state.get("drafts"):
     st.markdown("## 📄 Drafted Policies")
