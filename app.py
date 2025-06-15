@@ -144,7 +144,7 @@ if st.session_state.get("drafts"):
         buffer = io.BytesIO()
         doc.save(buffer)
         buffer.seek(0)
-        st.download_button(label=f"📅 Download {title}.docx", data=buffer, file_name=f"{title}.docx")
+        st.download_button(label=f"🗕️ Download {title}.docx", data=buffer, file_name=f"{title}.docx")
 
 if st.button("📌 Refine KPIs"):
     with st.spinner("Refining ESG metrics and KPIs..."):
@@ -162,7 +162,7 @@ if st.session_state.generated_metrics:
     st.markdown("### 📈 Recommended ESG Metrics and KPIs")
     st.text_area("Suggested KPIs", st.session_state.generated_metrics, height=250)
 
-# Dashboard placeholder activated
+# Dashboard section (activated)
 st.markdown("### 📊 ESG Report Summary Dashboard")
 if st.session_state.summaries or st.session_state.drafts:
     uploaded_count = len(st.session_state.summaries)
