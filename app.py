@@ -53,6 +53,8 @@ if 'drafts' not in st.session_state:
     st.session_state.drafts = {}
 if 'generated_metrics' not in st.session_state:
     st.session_state.generated_metrics = {}
+if 'checklist_progress' not in st.session_state:
+    st.session_state.checklist_progress = {}
 
 # Upload documents
 uploaded_files = st.file_uploader("📄 Upload ESG documents (PDF, DOCX, XLSX)", accept_multiple_files=True)
@@ -68,7 +70,8 @@ for goal in st.session_state.report_goal:
     if checklist:
         st.markdown(f"**{goal} requirements:**")
         for item in checklist:
-            st.markdown(f"- [ ] {item}")
+            key = f"progress_{goal}_{item}"
+            st.session_state.checklist_progress[key] = st.checkbox(item, key=key)
 
 # Extraction functions
 def extract_text(file):
@@ -136,6 +139,13 @@ if st.session_state.get("drafts"):
     for title, text in st.session_state.drafts.items():
         key_safe = title.replace(" ", "_").replace("/", "_")
         st.text_area(f"{title}", text, height=200, key=f"draft_{key_safe}_{len(st.session_state.drafts)}")
+        doc = docx.Document()
+        doc.add_heading(title, 0)
+        doc.add_paragraph(text)
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        st.download_button(label=f"📥 Download {title}.docx", data=buffer, file_name=f"{title}.docx")
 
 # Generate ESG metrics
 if st.button("📌 Suggest Metrics & KPIs"):
@@ -216,6 +226,12 @@ if st.session_state.summaries:
         st.markdown("**Reporting Goals:**")
         for goal in st.session_state.report_goal:
             st.markdown(f"- ✅ {goal}")
+
+    st.markdown("---")
+    st.markdown("**Checklist Completion:**")
+    for key, value in st.session_state.checklist_progress.items():
+        status = "✅" if value else "❌"
+        st.markdown(f"{status} {key.split('_')[-1]}")
 
     st.markdown("---")
     st.markdown("**Next Steps:**")
