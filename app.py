@@ -10,6 +10,11 @@ import base64
 from collections import defaultdict
 from fpdf import FPDF
 import requests
+import re
+
+# Normalize name function for checklist tracking
+def normalize_name(name):
+    return re.sub(r'\W+', '', name).lower()
 
 # Initialize OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -58,8 +63,8 @@ for goal in st.session_state.report_goal:
         st.markdown(f"**{goal} requirements:**")
         for item in checklist:
             key = f"progress_{goal}_{item}"
-            all_docs = [doc['file'] for doc in st.session_state.summaries] + list(st.session_state.get("drafts", {}).keys())
-            is_checked = item in all_docs
+            normalized_docs = [normalize_name(doc['file']) for doc in st.session_state.summaries] + [normalize_name(k) for k in st.session_state.get("drafts", {}).keys()]
+            is_checked = normalize_name(item) in normalized_docs
             st.session_state.checklist_progress[key] = st.checkbox(item, value=is_checked, key=key)
 
 def extract_text(file):
@@ -105,7 +110,7 @@ if st.session_state.summaries:
 
 if st.button("✨ Generate Missing Policies"):
     with st.spinner("Generating missing policy drafts..."):
-        missing = [item for goal in st.session_state.report_goal for item in goal_to_checklist.get(goal, []) if item not in st.session_state.get("drafts", {})]
+        missing = [item for goal in st.session_state.report_goal for item in goal_to_checklist.get(goal, []) if normalize_name(item) not in [normalize_name(k) for k in st.session_state.get("drafts", {}).keys()]]
         for topic in missing:
             try:
                 prompt = f"Create a basic draft of a {topic} for a company in {st.session_state.country} named {st.session_state.company_name}. Please base it only on credible sources."
