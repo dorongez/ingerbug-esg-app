@@ -17,44 +17,36 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 st.set_page_config(page_title="GingerBug ESG Assistant", layout="wide")
 st.title("🌱 GingerBug - Release your sustainable power")
 
-# Restart button
 if st.button("🔄 Start Over"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
 
-# Email collection
 st.markdown("### ✉️ Enter your email to personalize your experience")
 user_email = st.text_input("Your email address (we'll use this to save your session or send you your report)", "")
 if user_email:
     st.session_state.user_email = user_email
 
-# Company info and reporting type
 st.markdown("### 🏢 Company Info")
 st.session_state.company_name = st.text_input("Company Name", st.session_state.get("company_name", ""))
 st.session_state.company_url = st.text_input("Company Website URL", st.session_state.get("company_url", ""))
 st.session_state.country = st.text_input("Country", st.session_state.get("country", ""))
 st.session_state.report_goal = st.multiselect("📊 Reporting Goals", ["EcoVadis", "VSME", "CSRD Prep", "GRI"], default=["EcoVadis"])
 
-# Load logo if domain present
 if st.session_state.get("company_url"):
     try:
         st.image(f"https://logo.clearbit.com/{st.session_state.company_url}", width=100)
     except:
         st.warning("Could not load logo from Clearbit")
 
-# Language toggle
 lang = st.selectbox("🌐 Choose language", ["English", "Français", "Deutsch", "Español"])
 
-# Initialize session state
 for key in ['summaries', 'drafts', 'generated_metrics', 'checklist_progress']:
     if key not in st.session_state:
         st.session_state[key] = [] if key == 'summaries' else {}
 
-# Upload documents
 uploaded_files = st.file_uploader("📄 Upload ESG documents (PDF, DOCX, XLSX)", accept_multiple_files=True)
 
-# Prefilled checklist by reporting goal
 st.markdown("### ✅ Prefilled Checklist by Reporting Goal")
 goal_to_checklist = {
     "EcoVadis": ["Code of Conduct", "Supplier Policy", "Diversity & Inclusion", "Environmental Policy"],
@@ -66,9 +58,10 @@ for goal in st.session_state.report_goal:
         st.markdown(f"**{goal} requirements:**")
         for item in checklist:
             key = f"progress_{goal}_{item}"
-            st.session_state.checklist_progress[key] = st.checkbox(item, key=key)
+            all_docs = [doc['file'] for doc in st.session_state.summaries] + list(st.session_state.get("drafts", {}).keys())
+            is_checked = item in all_docs
+            st.session_state.checklist_progress[key] = st.checkbox(item, value=is_checked, key=key)
 
-# Extraction functions
 def extract_text(file):
     if file.name.endswith(".pdf"):
         reader = PdfReader(file)
@@ -100,7 +93,6 @@ if uploaded_files:
         st.session_state.summaries.append({"file": file.name, "summary": summary})
         st.text_area(f"Summary - {file.name}", summary, height=150, key=f"summary_{key_safe}_{len(st.session_state.summaries)}")
 
-# Traffic light indicator
 if st.session_state.summaries:
     completeness = len(st.session_state.summaries) / 5
     st.markdown("### 🔦 ESG Readiness")
@@ -111,11 +103,9 @@ if st.session_state.summaries:
     else:
         st.error("🔴 Incomplete: Please upload more ESG documents.")
 
-# Generate missing policies
 if st.button("✨ Generate Missing Policies"):
     with st.spinner("Generating missing policy drafts..."):
-        missing = ["Environmental Policy", "Code of Conduct", "Diversity & Inclusion Policy"]
-        st.session_state.drafts = {}
+        missing = [item for goal in st.session_state.report_goal for item in goal_to_checklist.get(goal, []) if item not in st.session_state.get("drafts", {})]
         for topic in missing:
             try:
                 prompt = f"Create a basic draft of a {topic} for a company in {st.session_state.country} named {st.session_state.company_name}. Please base it only on credible sources."
@@ -142,7 +132,6 @@ if st.session_state.get("drafts"):
         buffer.seek(0)
         st.download_button(label=f"📥 Download {title}.docx", data=buffer, file_name=f"{title}.docx")
 
-# Generate ESG metrics
 if st.button("📌 Suggest Metrics & KPIs"):
     with st.spinner("Generating KPIs based on selected frameworks..."):
         goals = ", ".join(st.session_state.get("report_goal", []))
@@ -158,76 +147,78 @@ if st.session_state.generated_metrics:
     st.markdown("### 📈 Recommended ESG Metrics and KPIs")
     st.text_area("Suggested KPIs", st.session_state.generated_metrics, height=250)
 
-# Export report
 class PDF(FPDF):
     def __init__(self):
         super().__init__()
-        try:
-            self.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
-            self.set_font("DejaVu", size=12)
-            self.using_dejavu = True
-        except:
-            self.set_font("Arial", size=12)
-            self.using_dejavu = False
+        self.set_font("Arial", size=12)
 
     def safe_text(self, text):
-        return text if self.using_dejavu else text.encode('latin-1', 'replace').decode('latin-1')
+        return text.encode('latin-1', 'replace').decode('latin-1')
 
 if st.button("🗕️ Export Full ESG Report"):
     with st.spinner("Bundling full ESG report..."):
         pdf = PDF()
         pdf.add_page()
-        pdf.multi_cell(0, 10, pdf.safe_text(f"Company: {st.session_state.get('company_name', '')}\nEmail: {user_email}\nCountry: {st.session_state.get('country', '')}\n"))
-        pdf.multi_cell(0, 10, pdf.safe_text(f"Goals: {', '.join(st.session_state.get('report_goal', []))}\n"))
+
+        pdf.multi_cell(0, 10, pdf.safe_text("🔍 ESG Report Summary"))
+        pdf.multi_cell(0, 10, pdf.safe_text(f"Company: {st.session_state.get('company_name', '')}\nEmail: {user_email}\nCountry: {st.session_state.get('country', '')}\nGoals: {', '.join(st.session_state.get('report_goal', []))}\n"))
 
         pdf.add_page()
-        pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "", 12)
-        pdf.multi_cell(0, 10, pdf.safe_text("Uploaded Document Summaries"))
-        for entry in st.session_state.summaries:
-            pdf.multi_cell(0, 10, pdf.safe_text(f"{entry['file']}\n{entry['summary']}\n"))
-
-        if st.session_state.drafts:
-            pdf.add_page()
-            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "", 12)
-            pdf.multi_cell(0, 10, pdf.safe_text("Generated Policies"))
-            for topic, content in st.session_state.drafts.items():
-                pdf.multi_cell(0, 10, pdf.safe_text(f"{topic}\n{content}\n"))
+        pdf.multi_cell(0, 10, pdf.safe_text("✅ Checklist Completion:"))
+        for key, value in st.session_state.checklist_progress.items():
+            status = "✅" if value else "❌"
+            pdf.multi_cell(0, 10, pdf.safe_text(f"{status} {key.split('_')[-1]}"))
 
         if st.session_state.generated_metrics:
             pdf.add_page()
-            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "", 12)
-            pdf.multi_cell(0, 10, pdf.safe_text("Suggested ESG KPIs"))
+            pdf.multi_cell(0, 10, pdf.safe_text("📈 Suggested ESG KPIs"))
             pdf.multi_cell(0, 10, pdf.safe_text(st.session_state.generated_metrics))
+
+        if st.session_state.drafts:
+            pdf.add_page()
+            pdf.multi_cell(0, 10, pdf.safe_text("📄 Generated Policies"))
+            for topic, content in st.session_state.drafts.items():
+                pdf.multi_cell(0, 10, pdf.safe_text(f"{topic}\n{content}\n"))
+
+        if st.session_state.summaries:
+            pdf.add_page()
+            pdf.multi_cell(0, 10, pdf.safe_text("📂 Uploaded Document Summaries"))
+            for entry in st.session_state.summaries:
+                pdf.multi_cell(0, 10, pdf.safe_text(f"{entry['file']}\n{entry['summary']}\n"))
 
         full_pdf_name = f"GingerBug_Full_Report_{st.session_state.get('company_name', 'report')}.pdf"
         pdf.output(full_pdf_name)
-
         with open(full_pdf_name, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
             href = f'<a href="data:application/pdf;base64,{b64}" download="{full_pdf_name}">🗕️ Download Full ESG PDF</a>'
             st.markdown(href, unsafe_allow_html=True)
 
-# Dashboard
 st.markdown("### 📊 ESG Report Summary Dashboard")
 if st.session_state.summaries:
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Uploaded Documents", len(st.session_state.summaries))
         st.metric("Generated Policies", len(st.session_state.drafts))
+        total_items = sum(1 for k in st.session_state.checklist_progress)
+        completed = sum(1 for k, v in st.session_state.checklist_progress.items() if v)
+        st.metric("Checklist Completion", f"{completed}/{total_items}")
     with col2:
         st.markdown("**Reporting Goals:**")
         for goal in st.session_state.report_goal:
             st.markdown(f"- ✅ {goal}")
 
     st.markdown("---")
-    st.markdown("**Checklist Completion:**")
-    for key, value in st.session_state.checklist_progress.items():
-        status = "✅" if value else "❌"
-        st.markdown(f"{status} {key.split('_')[-1]}")
-
-    st.markdown("---")
     st.markdown("**Next Steps:**")
-    st.markdown("1. Upload missing documents based on your reporting goal")
-    st.markdown("2. Generate policies based on gaps")
-    st.markdown("3. Review & refine ESG KPIs")
-    st.markdown("4. Export and share your full ESG draft")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        if st.button("➕ Upload More Docs"):
+            st.warning("Scroll up to use the uploader.")
+    with col2:
+        if st.button("📝 Generate Policies"):
+            st.rerun()
+    with col3:
+        if st.button("📊 Refine KPIs"):
+            st.rerun()
+    with col4:
+        if st.button("🗕 Download PDF"):
+            st.rerun()
