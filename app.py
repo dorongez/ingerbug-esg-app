@@ -47,14 +47,9 @@ if st.session_state.get("company_url"):
 lang = st.selectbox("🌐 Choose language", ["English", "Français", "Deutsch", "Español"])
 
 # Initialize session state
-if 'summaries' not in st.session_state:
-    st.session_state.summaries = []
-if 'drafts' not in st.session_state:
-    st.session_state.drafts = {}
-if 'generated_metrics' not in st.session_state:
-    st.session_state.generated_metrics = {}
-if 'checklist_progress' not in st.session_state:
-    st.session_state.checklist_progress = {}
+for key in ['summaries', 'drafts', 'generated_metrics', 'checklist_progress']:
+    if key not in st.session_state:
+        st.session_state[key] = [] if key == 'summaries' else {}
 
 # Upload documents
 uploaded_files = st.file_uploader("📄 Upload ESG documents (PDF, DOCX, XLSX)", accept_multiple_files=True)
@@ -121,7 +116,7 @@ if st.button("✨ Generate Missing Policies"):
     with st.spinner("Generating missing policy drafts..."):
         missing = ["Environmental Policy", "Code of Conduct", "Diversity & Inclusion Policy"]
         st.session_state.drafts = {}
-        for i, topic in enumerate(missing):
+        for topic in missing:
             try:
                 prompt = f"Create a basic draft of a {topic} for a company in {st.session_state.country} named {st.session_state.company_name}. Please base it only on credible sources."
                 response = client.chat.completions.create(
@@ -186,25 +181,22 @@ if st.button("🗕️ Export Full ESG Report"):
         pdf.multi_cell(0, 10, pdf.safe_text(f"Goals: {', '.join(st.session_state.get('report_goal', []))}\n"))
 
         pdf.add_page()
-        pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "B", 12)
+        pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "", 12)
         pdf.multi_cell(0, 10, pdf.safe_text("Uploaded Document Summaries"))
-        pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", size=12)
         for entry in st.session_state.summaries:
             pdf.multi_cell(0, 10, pdf.safe_text(f"{entry['file']}\n{entry['summary']}\n"))
 
         if st.session_state.drafts:
             pdf.add_page()
-            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "B", 12)
+            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "", 12)
             pdf.multi_cell(0, 10, pdf.safe_text("Generated Policies"))
-            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", size=12)
             for topic, content in st.session_state.drafts.items():
                 pdf.multi_cell(0, 10, pdf.safe_text(f"{topic}\n{content}\n"))
 
         if st.session_state.generated_metrics:
             pdf.add_page()
-            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "B", 12)
+            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "", 12)
             pdf.multi_cell(0, 10, pdf.safe_text("Suggested ESG KPIs"))
-            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", size=12)
             pdf.multi_cell(0, 10, pdf.safe_text(st.session_state.generated_metrics))
 
         full_pdf_name = f"GingerBug_Full_Report_{st.session_state.get('company_name', 'report')}.pdf"
