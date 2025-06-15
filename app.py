@@ -51,10 +51,26 @@ if 'summaries' not in st.session_state:
     st.session_state.summaries = []
 if 'drafts' not in st.session_state:
     st.session_state.drafts = {}
+if 'generated_metrics' not in st.session_state:
+    st.session_state.generated_metrics = {}
 
 # Upload documents
 uploaded_files = st.file_uploader("📄 Upload ESG documents (PDF, DOCX, XLSX)", accept_multiple_files=True)
 
+# Prefilled checklist by reporting goal
+st.markdown("### ✅ Prefilled Checklist by Reporting Goal")
+goal_to_checklist = {
+    "EcoVadis": ["Code of Conduct", "Supplier Policy", "Diversity & Inclusion", "Environmental Policy"],
+    "CSRD Prep": ["Double Materiality Assessment", "Energy Audit", "GRI Alignment", "Sustainability Governance Policy"]
+}
+for goal in st.session_state.report_goal:
+    checklist = goal_to_checklist.get(goal, [])
+    if checklist:
+        st.markdown(f"**{goal} requirements:**")
+        for item in checklist:
+            st.markdown(f"- [ ] {item}")
+
+# Extraction functions
 def extract_text(file):
     if file.name.endswith(".pdf"):
         reader = PdfReader(file)
@@ -86,7 +102,7 @@ if uploaded_files:
         st.session_state.summaries.append({"file": file.name, "summary": summary})
         st.text_area(f"Summary - {file.name}", summary, height=150, key=f"summary_{key_safe}_{len(st.session_state.summaries)}")
 
-# Show traffic light indicator based on summary completeness
+# Traffic light indicator
 if st.session_state.summaries:
     completeness = len(st.session_state.summaries) / 5
     st.markdown("### 🔦 ESG Readiness")
@@ -97,14 +113,13 @@ if st.session_state.summaries:
     else:
         st.error("🔴 Incomplete: Please upload more ESG documents.")
 
-# Generate missing policies with spinner and exception handling
+# Generate missing policies
 if st.button("✨ Generate Missing Policies"):
     with st.spinner("Generating missing policy drafts..."):
         missing = ["Environmental Policy", "Code of Conduct", "Diversity & Inclusion Policy"]
         st.session_state.drafts = {}
         for i, topic in enumerate(missing):
             try:
-                st.markdown(f"⏳ Generating: **{topic}**...")
                 prompt = f"Create a basic draft of a {topic} for a company in {st.session_state.country} named {st.session_state.company_name}. Please base it only on credible sources."
                 response = client.chat.completions.create(
                     model="gpt-4",
@@ -122,7 +137,23 @@ if st.session_state.get("drafts"):
         key_safe = title.replace(" ", "_").replace("/", "_")
         st.text_area(f"{title}", text, height=200, key=f"draft_{key_safe}_{len(st.session_state.drafts)}")
 
-# Enhanced full report export with safe encoding
+# Generate ESG metrics
+if st.button("📌 Suggest Metrics & KPIs"):
+    with st.spinner("Generating KPIs based on selected frameworks..."):
+        goals = ", ".join(st.session_state.get("report_goal", []))
+        prompt = f"Suggest 5 ESG metrics and KPIs for a company reporting under {goals}."
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
+        st.session_state.generated_metrics = response.choices[0].message.content.strip()
+
+if st.session_state.generated_metrics:
+    st.markdown("### 📈 Recommended ESG Metrics and KPIs")
+    st.text_area("Suggested KPIs", st.session_state.generated_metrics, height=250)
+
+# Export report
 class PDF(FPDF):
     def __init__(self):
         super().__init__()
@@ -159,6 +190,13 @@ if st.button("🗕️ Export Full ESG Report"):
             for topic, content in st.session_state.drafts.items():
                 pdf.multi_cell(0, 10, pdf.safe_text(f"{topic}\n{content}\n"))
 
+        if st.session_state.generated_metrics:
+            pdf.add_page()
+            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", "B", 12)
+            pdf.multi_cell(0, 10, pdf.safe_text("Suggested ESG KPIs"))
+            pdf.set_font("DejaVu" if pdf.using_dejavu else "Arial", size=12)
+            pdf.multi_cell(0, 10, pdf.safe_text(st.session_state.generated_metrics))
+
         full_pdf_name = f"GingerBug_Full_Report_{st.session_state.get('company_name', 'report')}.pdf"
         pdf.output(full_pdf_name)
 
@@ -167,7 +205,7 @@ if st.button("🗕️ Export Full ESG Report"):
             href = f'<a href="data:application/pdf;base64,{b64}" download="{full_pdf_name}">🗕️ Download Full ESG PDF</a>'
             st.markdown(href, unsafe_allow_html=True)
 
-# Dashboard section
+# Dashboard
 st.markdown("### 📊 ESG Report Summary Dashboard")
 if st.session_state.summaries:
     col1, col2 = st.columns(2)
@@ -182,5 +220,6 @@ if st.session_state.summaries:
     st.markdown("---")
     st.markdown("**Next Steps:**")
     st.markdown("1. Upload missing documents based on your reporting goal")
-    st.markdown("2. Finalize your policies (review and export)")
-    st.markdown("3. Use the generated full report for your ESG submission or as a draft")
+    st.markdown("2. Generate policies based on gaps")
+    st.markdown("3. Review & refine ESG KPIs")
+    st.markdown("4. Export and share your full ESG draft")
