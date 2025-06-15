@@ -53,7 +53,7 @@ if 'drafts' not in st.session_state:
     st.session_state.drafts = {}
 
 # Upload documents
-uploaded_files = st.file_uploader("📤 Upload ESG documents (PDF, DOCX, XLSX)", accept_multiple_files=True)
+uploaded_files = st.file_uploader("📄 Upload ESG documents (PDF, DOCX, XLSX)", accept_multiple_files=True)
 
 def extract_text(file):
     if file.name.endswith(".pdf"):
@@ -116,49 +116,52 @@ if st.session_state.get("drafts"):
         key_safe = title.replace(" ", "_").replace("/", "_")
         st.text_area(f"{title}", text, height=200, key=f"draft_{key_safe}_{len(st.session_state.drafts)}")
 
-# Enhanced final report export
-if st.button("📥 Export Full ESG Report"):
+# Enhanced full report export with UTF-8 support
+class PDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
+        self.set_font("DejaVu", size=12)
+
+if st.button("📅 Export Full ESG Report"):
     with st.spinner("Bundling full ESG report..."):
-        pdf = FPDF()
+        pdf = PDF()
         pdf.add_page()
-        pdf.set_font("Arial", size=12)
         pdf.multi_cell(0, 10, f"Company: {st.session_state.get('company_name', '')}\nEmail: {user_email}\nCountry: {st.session_state.get('country', '')}\n")
         pdf.multi_cell(0, 10, f"Goals: {', '.join(st.session_state.get('report_goal', []))}\n")
 
         if 'autopilot' in st.session_state:
-            auto = st.session_state['autopilot']
-            pdf.set_font("Arial", 'B', 12)
+            pdf.set_font("DejaVu", "B", 12)
             pdf.multi_cell(0, 10, "Autopilot Profile")
-            pdf.set_font("Arial", size=12)
-            for k, v in auto.items():
+            pdf.set_font("DejaVu", size=12)
+            for k, v in st.session_state['autopilot'].items():
                 if k != "Logo URL":
                     pdf.multi_cell(0, 10, f"{k}: {v}")
 
         pdf.add_page()
-        pdf.set_font("Arial", 'B', 12)
+        pdf.set_font("DejaVu", "B", 12)
         pdf.multi_cell(0, 10, "Uploaded Document Summaries")
-        pdf.set_font("Arial", size=12)
+        pdf.set_font("DejaVu", size=12)
         for entry in st.session_state.summaries:
-            safe_summary = entry['summary'].encode('latin-1', 'replace').decode('latin-1')
-            pdf.multi_cell(0, 10, f"{entry['file']}\n{safe_summary}\n")
+            pdf.multi_cell(0, 10, f"{entry['file']}\n{entry['summary']}\n")
 
         if st.session_state.drafts:
             pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
+            pdf.set_font("DejaVu", "B", 12)
             pdf.multi_cell(0, 10, "Generated Policies")
-            pdf.set_font("Arial", size=12)
+            pdf.set_font("DejaVu", size=12)
             for topic, content in st.session_state.drafts.items():
-                safe_content = content.encode('latin-1', 'replace').decode('latin-1')
-                pdf.multi_cell(0, 10, f"{topic}\n{safe_content}\n")
+                pdf.multi_cell(0, 10, f"{topic}\n{content}\n")
 
         full_pdf_name = f"GingerBug_Full_Report_{st.session_state.get('company_name', 'report')}.pdf"
         pdf.output(full_pdf_name)
+
         with open(full_pdf_name, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
-            href = f'<a href="data:application/pdf;base64,{b64}" download="{full_pdf_name}">📥 Download Full ESG PDF</a>'
+            href = f'<a href="data:application/pdf;base64,{b64}" download="{full_pdf_name}">📅 Download Full ESG PDF</a>'
             st.markdown(href, unsafe_allow_html=True)
 
-# Placeholder for dashboard
+# Dashboard section
 st.markdown("### 📊 ESG Report Summary Dashboard")
 if st.session_state.summaries:
     col1, col2 = st.columns(2)
